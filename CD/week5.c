@@ -2,93 +2,112 @@
 #include <stdio.h>
 #include <string.h>
 
-char table[5][6] = {
-    //  i     +     *     (     )     $
-    { ' ', ' ', ' ', ' ', ' ', ' ' },  // Dummy
-};
+int action(int state, char ch) {
+    if (state == 0 || state == 1 || state == 3) {
+        if (ch == 'c') return 3;
+        if (ch == 'd') return 4;
+    }
+    else if (state == 2 && ch == '$')
+        return 100;
 
-char* getRule(char X, char a) {
-    if (X == 'E' && (a == 'i' || a == '('))
-        return "TR";
+    else if (state == 4)
+        return -3;
 
-    if (X == 'R' && a == '+')
-        return "+TR";
-    if (X == 'R' && (a == ')' || a == '$'))
-        return "#";
+    else if (state == 5 && ch == '$')
+        return -1;
 
-    if (X == 'T' && (a == 'i' || a == '('))
-        return "FY";
+    else if (state == 6)
+        return -2;
 
-    if (X == 'Y' && a == '*')
-        return "*FY";
-    if (X == 'Y' && (a == '+' || a == ')' || a == '$'))
-        return "#";
+    return 0;
+}
 
-    if (X == 'F' && a == 'i')
-        return "i";
-    if (X == 'F' && a == '(')
-        return "(E)";
+int goTo(int state, char ch) {
+    if (state == 0 && ch == 'S') return 1;
+    if (state == 0 && ch == 'C') return 2;
+    if (state == 1 && ch == 'C') return 5;
+    if (state == 3 && ch == 'C') return 6;
 
-    return NULL;
+    return -1;
+}
+
+void parse(char str[]) {
+    int st[100], top = 0, i = 0;
+    int act, p, length, ns;
+    char ch;
+
+    strcat(str, "$");
+    st[0] = 0;
+
+    printf("\nParsing Steps:\n");
+
+    while (1) {
+        int s = st[top];
+        ch = str[i];
+
+        act = action(s, ch);
+
+        printf("State: %d Input: %s", s, str + i);
+
+        if (act == 0) {
+            printf(" Action: ERROR\n");
+            printf("\nString Rejected!\n");
+            return;
+        }
+
+        if (act == 100) {
+            printf(" Action: ACCEPT\n");
+            printf("\nString Accepted!\n");
+            return;
+        }
+
+        if (act > 0) {
+            printf(" Action: s%d\n", act);
+            st[++top] = act;
+            i++;
+        }
+        else {
+            p = -act;
+
+            if (p == 1) {
+                printf(" Action: r1 (S -> CC)\n");
+                length = 2;
+            }
+            else if (p == 2) {
+                printf(" Action: r2 (C -> cC)\n");
+                length = 2;
+            }
+            else {
+                printf(" Action: r3 (C -> d)\n");
+                length = 1;
+            }
+
+            top -= length;
+
+            ns = goTo(st[top], p == 1 ? 'S' : 'C');
+
+            if (ns == -1) {
+                printf("\nString Rejected!\n");
+                return;
+            }
+
+            st[++top] = ns;
+        }
+    }
 }
 
 int main() {
-    char st[100] = "$E";
-    char input[100];
-    int ip = 0, top = 1;
+    char str[100];
 
-    printf("Enter input string (use i for identifier): ");
-    scanf("%99s", input);
+    printf("Grammar:\n");
+    printf("S -> CC\n");
+    printf("C -> cC\n");
+    printf("C -> d\n");
 
-    strcat(input, "$");
+    printf("\nEnter input string: ");
+    scanf("%99s", str);
 
-    printf("\nStack\t\tInput\t\tAction\n");
-    printf("---------------------------------------------\n");
+    parse(str);
 
-    while (top >= 0) {
-        char X = st[top];
-        char a = input[ip];
-
-        st[top + 1] = '\0';
-
-        printf("%s\t\t%s\t\t", st, input + ip);
-
-        if (X == '$' && a == '$') {
-            printf("Accept\n");
-            return 0;
-        }
-
-        if (X == a) {
-            top--;
-            ip++;
-            printf("Match %c\n", a);
-        }
-        else if (X >= 'A' && X <= 'Z') {
-            char *rhs = getRule(X, a);
-
-            if (rhs == NULL) {
-                printf("Error\n");
-                return 0;
-            }
-
-            top--;
-
-            printf("%c -> %s\n", X,
-                   strcmp(rhs, "#") == 0 ? "epsilon" : rhs);
-
-            if (strcmp(rhs, "#") != 0) {
-                int len = strlen(rhs);
-
-                for (int j = len - 1; j >= 0; j--)
-                    st[++top] = rhs[j];
-            }
-        }
-        else {
-            printf("Error\n");
-            return 0;
-        }
-    }
-
-    printf("Rejected\n");
     return 0;
 }
